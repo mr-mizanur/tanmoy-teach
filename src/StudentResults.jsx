@@ -114,7 +114,19 @@ export default function StudentResults() {
               <FaGraduationCap className="text-blue-600" />
               Student Results
             </h1>
-            <p className="text-gray-600 mt-1">Real-time • Tanmoy Teach</p>
+          <p class="mt-4 flex items-center justify-center gap-3 text-sm">
+  <a 
+    href="https://mr-mizanur.web.app/" 
+    target="_blank"
+    class="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors">
+    <span class="font-medium">Developed by</span>
+    <span class="font-semibold tracking-tight">Davloper</span>
+  </a>
+  
+  <span class="h-3 w-px bg-gray-300"></span>
+  
+  <span class="text-gray-600">Powered by <span class="font-semibold text-gray-800">Tanmoy Teach</span></span>
+</p>
           </div>
 
           <button
