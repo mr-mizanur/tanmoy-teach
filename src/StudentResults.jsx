@@ -15,6 +15,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// GPA Calculation Function (Bangladesh Curriculum)
+const getGPA = (marks) => {
+  if (marks >= 80) return { gpa: 5.00, grade: "A+" };
+  if (marks >= 70) return { gpa: 4.00, grade: "A" };
+  if (marks >= 60) return { gpa: 3.50, grade: "A-" };
+  if (marks >= 50) return { gpa: 3.00, grade: "B" };
+  if (marks >= 40) return { gpa: 2.00, grade: "C" };
+  if (marks >= 33) return { gpa: 1.00, grade: "D" };
+  return { gpa: 0.00, grade: "F" };
+};
+
 export default function StudentResults() {
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
@@ -49,8 +60,8 @@ export default function StudentResults() {
         studentList.push({
           ...data,
           totalMarks,
-          docId: doc.id,                    // Firebase document ID (যদি দরকার হয়)
-          displayId: data.studentId || data.rollNo || data.id || doc.id.substring(0, 8) // ← এটা গুরুত্বপূর্ণ
+          docId: doc.id,
+          displayId: data.studentId || data.rollNo || data.id || doc.id.substring(0, 8)
         });
       });
 
@@ -69,7 +80,6 @@ export default function StudentResults() {
       student.displayId?.toString().toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Sorting
     if (sortType === 'name') {
       result.sort((a, b) => a.name?.localeCompare(b.name));
     } else if (sortType === 'id') {
@@ -91,9 +101,10 @@ export default function StudentResults() {
       return;
     }
 
-    let csv = "Name,Student ID,Total Marks\n";
+    let csv = "Name,Student ID,Total Marks,Overall GPA\n";
     students.forEach(s => {
-      csv += `"${s.name}","${s.displayId}",${s.totalMarks}\n`;
+      const totalGPA = calculateOverallGPA(s);
+      csv += `"${s.name}","${s.displayId}",${s.totalMarks},${totalGPA}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -103,6 +114,20 @@ export default function StudentResults() {
     a.download = `student_results_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
   }
+
+  // Helper to calculate overall GPA
+  const calculateOverallGPA = (student) => {
+    if (!student.exams || student.exams.length === 0) return 0;
+    let totalGPA = 0;
+    student.exams.forEach(exam => {
+      const mcq = +exam.mcq || 0;
+      const cq = +exam.cq || 0;
+      const total = mcq + cq;
+      const { gpa } = getGPA(total);
+      totalGPA += gpa;
+    });
+    return (totalGPA / student.exams.length).toFixed(2);
+  };
 
   return (
     <div className="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen pb-10">
@@ -114,19 +139,17 @@ export default function StudentResults() {
               <FaGraduationCap className="text-blue-600" />
               Student Results
             </h1>
-          <p class="mt-4 flex items-center justify-center gap-3 text-sm">
-  <a 
-    href="https://mr-mizanur.web.app/" 
-    target="_blank"
-    class="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors">
-    <span class="font-medium">Developed by</span>
-    <span class="font-semibold tracking-tight">Davloper</span>
-  </a>
-  
-  <span class="h-3 w-px bg-gray-300"></span>
-  
-  <span class="text-gray-600">Powered by <span class="font-semibold text-gray-800">Tanmoy Teach</span></span>
-</p>
+            <p className="mt-4 flex items-center gap-3 text-sm">
+              <a 
+                href="https://mr-mizanur.web.app/" 
+                target="_blank"
+                className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors">
+                <span className="font-medium">Developed by</span>
+                <span className="font-semibold tracking-tight">Davloper</span>
+              </a>
+              <span className="h-3 w-px bg-gray-300"></span>
+              <span className="text-gray-600">Powered by <span className="font-semibold text-gray-800">Tanmoy Teach</span></span>
+            </p>
           </div>
 
           <button
@@ -181,23 +204,35 @@ export default function StudentResults() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredStudents.map((student) => {
                   let grandTotal = 0;
+                  let totalGPA = 0;
+                  let subjectCount = 0;
+
                   const marksHTML = student.exams?.map((exam, i) => {
                     const mcq = +exam.mcq || 0;
                     const cq = +exam.cq || 0;
                     const total = mcq + cq;
                     grandTotal += total;
 
+                    const { gpa, grade } = getGPA(total);
+                    totalGPA += gpa;
+                    subjectCount++;
+
                     return (
                       <div key={i} className="flex justify-between items-center py-2 border-b last:border-0">
                         <span className="font-medium text-gray-700">{exam.subject || 'Exam'}</span>
-                        <span className="text-sm">
+                        <span className="text-sm flex items-center gap-3">
                           <span className="text-blue-600">{mcq}</span> +{' '}
                           <span className="text-emerald-600">{cq}</span> ={' '}
                           <span className="font-bold text-gray-800">{total}</span>
+                          <span className="ml-2 px-3 py-1 bg-white border rounded-full text-xs font-semibold">
+                            {grade} <span className="text-blue-600">({gpa})</span>
+                          </span>
                         </span>
                       </div>
                     );
                   }) || <p className="text-gray-500 py-4">No exam data available</p>;
+
+                  const overallGPA = subjectCount > 0 ? (totalGPA / subjectCount).toFixed(2) : "0.00";
 
                   return (
                     <div
@@ -217,7 +252,10 @@ export default function StudentResults() {
                             <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-blue-600 to-emerald-600">
                               {grandTotal}
                             </div>
-                            <p className="text-xs text-gray-500 -mt-1">TOTAL</p>
+                            <p className="text-xs text-gray-500 -mt-1">TOTAL MARKS</p>
+                            <div className="mt-2 text-xl font-bold text-emerald-600">
+                              {overallGPA} <span className="text-base font-medium text-gray-500">GPA</span>
+                            </div>
                           </div>
                         </div>
 
@@ -226,7 +264,7 @@ export default function StudentResults() {
                         </div>
 
                         <div className="flex justify-between text-sm text-gray-500">
-                          <span>{student.exams?.length || 0} Exams</span>
+                          <span>{student.exams?.length || 0} Subjects</span>
                           <span className="text-emerald-600 font-medium cursor-pointer hover:underline">
                             View Details →
                           </span>
